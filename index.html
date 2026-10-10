@@ -103,10 +103,15 @@
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
-                callback: (tokenResponse) => {
+                                callback: (tokenResponse) => {
                     if (tokenResponse && tokenResponse.access_token) {
+                        
+                        // BARIS INI YANG SEBELUMNYA KURANG (Menyuntikkan Kunci Akses)
+                        gapi.client.setToken({ access_token: tokenResponse.access_token });
+                        
                         // Jika berhasil login, pindah ke halaman dasbor
                         document.getElementById('login-screen').classList.add('hidden');
+
                         document.getElementById('dashboard-screen').classList.remove('hidden');
                         document.getElementById('dashboard-screen').classList.add('flex');
                         fetchRealYouTubeData();
