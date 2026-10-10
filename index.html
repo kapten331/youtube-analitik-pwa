@@ -65,7 +65,7 @@
             
             <!-- TAB 1: DASBOR -->
             <div id="tab-dashboard" class="tab-content block">
-                <!-- Grid Statistik Utama (Diperluas dengan Views Publik & Shorts) -->
+                <!-- Grid Statistik Utama (Pemisahan Views Publik & Shorts) -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700">
                         <p class="text-gray-400 text-xs font-medium mb-1">Total Subscriber</p>
@@ -283,20 +283,22 @@
             }
         });
 
-        // Penarikan Data Analitik (Termasuk Pemisahan Views Long-form & Shorts)
+        // Penarikan Data Analitik & Pemilah Views Otomatis (Long-form vs Shorts)
         async function fetchRealYouTubeData() {
             try {
-                // Tarik statistik utama channel
-                const channelResponse = await gapi.client.youtube.channels.list({ part: 'snippet,statistics', mine: true });
-                const stats = channelResponse.result.items[0].statistics;
+                // 1. Tarik statistik utama channel & playlist upload
+                const channelResponse = await gapi.client.youtube.channels.list({ part: 'snippet,statistics,contentDetails', mine: true });
+                const channel = channelResponse.result.items[0];
+                const stats = channel.statistics;
+                const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
 
                 document.getElementById('total-views').innerText = parseInt(stats.viewCount).toLocaleString('id-ID');
                 document.getElementById('total-subs').innerText = parseInt(stats.subscriberCount).toLocaleString('id-ID');
                 
+                // 2. Tarik Grafik Harian 30 Hari Terakhir
                 const endDate = new Date().toISOString().split('T')[0];
                 const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                 
-                // Tarik Grafik Harian
                 const analyticsResponse = await gapi.client.youtubeAnalytics.reports.query({
                     ids: 'channel==MINE', startDate: startDate, endDate: endDate,
                     metrics: 'views', dimensions: 'day', sort: 'day'
@@ -309,39 +311,60 @@
                 renderRealChart(labels, viewsData);
                 generateAIStrategy(reportRows);
 
-                // Tarik Data Berdasarkan Jenis Video (Live Stream vs OnDemand vs Shorts jika didukung region)
-                try {
-                    const breakdownResponse = await gapi.client.youtubeAnalytics.reports.query({
-                        ids: 'channel==MINE', startDate: '2023-01-01', endDate: endDate,
-                        metrics: 'views', dimensions: 'videoType'
+                // 3. Tarik & Pisahkan Views Video Panjang vs Shorts Berdasarkan Durasi Video
+                const playlistResponse = await gapi.client.youtube.playlistItems.list({
+                    part: 'contentDetails',
+                    playlistId: uploadsPlaylistId,
+                    maxResults: 50 // Menganalisis hingga 50 video terakhir
+                });
+
+                const videoIds = playlistResponse.result.items.map(item => item.contentDetails.videoId).join(',');
+
+                if (videoIds) {
+                    const videosResponse = await gapi.client.youtube.videos.list({
+                        part: 'statistics,contentDetails',
+                        id: videoIds
                     });
-                    
-                    if (breakdownResponse.result.rows) {
-                        let longViews = 0;
-                        let shortsViews = 0;
-                        breakdownResponse.result.rows.forEach(row => {
-                            // videoType: 0 = OnDemand (Publik biasa), 1 = Live, 2 = Shorts (tergantung mapping API)
-                            if (row[0] === '2' || row[0] === 'shorts') {
-                                shortsViews += row[1];
-                            } else {
-                                longViews += row[1];
-                            }
-                        });
-                        document.getElementById('public-views').innerText = longViews > 0 ? longViews.toLocaleString('id-ID') : "---";
-                        document.getElementById('shorts-views').innerText = shortsViews > 0 ? shortsViews.toLocaleString('id-ID') : "0";
-                    } else {
-                        document.getElementById('public-views').innerText = "Tersedia";
-                        document.getElementById('shorts-views').innerText = "Tersedia";
-                    }
-                } catch(e) {
-                    document.getElementById('public-views').innerText = "Normal";
-                    document.getElementById('shorts-views').innerText = "Shorts";
+
+                    let longViewsCount = 0;
+                    let shortsViewsCount = 0;
+
+                    videosResponse.result.items.forEach(video => {
+                        const viewCount = parseInt(video.statistics.viewCount || 0);
+                        const durationIso = video.contentDetails.duration;
+                        const durationInSeconds = parseIsoDuration(durationIso);
+
+                        // Aturan: Video <= 60 detik dikategorikan sebagai Shorts
+                        if (durationInSeconds <= 60) {
+                            shortsViewsCount += viewCount;
+                        } else {
+                            longViewsCount += viewCount;
+                        }
+                    });
+
+                    document.getElementById('public-views').innerText = longViewsCount.toLocaleString('id-ID');
+                    document.getElementById('shorts-views').innerText = shortsViewsCount.toLocaleString('id-ID');
+                } else {
+                    document.getElementById('public-views').innerText = "0";
+                    document.getElementById('shorts-views').innerText = "0";
                 }
 
             } catch (err) {
                 console.error("Gagal menarik data:", err);
-                document.getElementById('ai-strategy-text').innerText = "Gagal memuat data analitik. Pastikan API YouTube Analytics aktif.";
+                document.getElementById('ai-strategy-text').innerText = "Gagal memuat rincian views. Pastikan YouTube Data API aktif.";
+                document.getElementById('public-views').innerText = "N/A";
+                document.getElementById('shorts-views').innerText = "N/A";
             }
+        }
+
+        // Helper konversi format durasi ISO 8601 ke detik
+        function parseIsoDuration(isoDuration) {
+            const match = isoDuration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+            if (!match) return 0;
+            const hours = (parseInt(match[1]) || 0);
+            const minutes = (parseInt(match[2]) || 0);
+            const seconds = (parseInt(match[3]) || 0);
+            return (hours * 3600) + (minutes * 60) + seconds;
         }
 
         function renderRealChart(labels, data) {
