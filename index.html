@@ -84,14 +84,18 @@
         let gisInited = false;
         let trafficChartInstance = null;
 
-        // 1. Muat Google API Client (GAPI)
+                // 1. Muat Google API Client (GAPI)
         gapi.load('client', () => {
             gapi.client.init({
                 discoveryDocs: DISCOVERY_DOCS,
             }).then(() => {
                 gapiInited = true;
                 checkAuthReady();
-            }).catch(err => console.error("GAPI Init Error:", err));
+            }).catch(err => {
+                // Tambahan baris ini untuk memunculkan pesan error ke layar!
+                alert("Penyebab gagal: " + JSON.stringify(err));
+                console.error("GAPI Init Error:", err);
+            });
         });
 
         // 2. Muat Google Identity Services (OAuth 2.0)
