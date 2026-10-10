@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>CreatorAI - YouTube Analyzer</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .live-indicator {
+            animation: pulse-ring 2s infinite;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex justify-center h-screen overflow-hidden text-gray-800">
+
+    <div class="w-full max-w-md bg-gray-50 h-full relative overflow-hidden flex flex-col sm:border-x sm:border-gray-200 sm:shadow-2xl shadow-black">
+        
+        <div id="login-screen" class="absolute inset-0 z-50 bg-white flex flex-col p-6 transition-opacity duration-300">
+            <div class="flex-1 flex flex-col items-center justify-center">
+                <div class="w-20 h-20 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-200 mb-6">
+                    <i class="fa-brands fa-youtube text-4xl text-white"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">CreatorAI</h1>
+                <p class="text-gray-500 text-center text-sm px-4 mb-10">Asisten cerdas untuk memantau trafik dan memberi saran otomatis untuk channel Anda.</p>
+                
+                <div class="w-full space-y-3">
+                    <button onclick="startApp()" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 text-gray-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 active:scale-95 transition-all">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
+                        Login dengan Google
+                    </button>
+                </div>
+            </div>
+            <p class="text-center text-xs text-gray-400 pb-4">Aman & Terenkripsi. Menggunakan YouTube API.</p>
+        </div>
+
+        <div id="dashboard-screen" class="hidden flex-col h-full w-full bg-gray-50">
+            
+            <header class="bg-white px-5 py-4 flex items-center justify-between shadow-sm z-20">
+                <div class="flex items-center gap-3">
+                    <img src="https://placehold.co/100x100/ef4444/ffffff?text=U" alt="User" class="w-10 h-10 rounded-full border border-gray-200 shadow-sm">
+                    <div>
+                        <h2 class="text-xs text-gray-500 font-medium uppercase tracking-wider">Channel Anda</h2>
+                        <h3 class="text-base font-bold text-gray-900 leading-tight flex items-center gap-2">
+                            Kreator Hebat 
+                            <span class="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">
+                                <div class="w-1.5 h-1.5 bg-red-600 rounded-full live-indicator"></div> LIVE
+                            </span>
+                        </h3>
+                    </div>
+                </div>
+                <button onclick="logoutApp()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+                    <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+                </button>
+            </header>
+
+            <main class="flex-1 overflow-y-auto no-scrollbar p-5 pb-24 space-y-6">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-gray-500 text-sm font-medium"><i class="fa-solid fa-eye text-blue-500 mr-1.5"></i> Total Penonton Live</span>
+                            <span id="trend-viewers-badge" class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                                <i id="trend-viewers-icon" class="fa-solid fa-arrow-up"></i> <span id="trend-viewers-val">0%</span>
+                            </span>
+                        </div>
+                        <h2 id="metric-viewers" class="text-4xl font-extrabold text-gray-900 tracking-tight mt-1 transition-all">0</h2>
+                        <p class="text-xs text-gray-400 mt-1">Diperbarui setiap detik</p>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <span class="text-gray-500 text-xs font-medium"><i class="fa-solid fa-user-plus text-purple-500 mr-1"></i> Subs Baru</span>
+                        <h2 id="metric-subs" class="text-2xl font-bold text-gray-900 mt-1 transition-all">+0</h2>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <span class="text-gray-500 text-xs font-medium"><i class="fa-solid fa-sack-dollar text-green-500 mr-1"></i> Pendapatan</span>
+                        <h2 id="metric-rev" class="text-xl font-bold text-gray-900 mt-1 transition-all">Rp 0</h2>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-indigo-500"></i> AI Strategi Realtime
+                    </h3>
+                    
+                    <div id="ai-card" class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-4 rounded-2xl shadow-sm transition-all duration-500">
+                        <div class="flex gap-3">
+                            <div id="ai-icon-bg" class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 transition-colors duration-300">
+                                <i id="ai-icon" class="fa-solid fa-check text-white"></i>
+                            </div>
+                            <div>
+                                <h4 id="ai-title" class="font-bold text-green-900 text-base">Sangat Bagus!</h4>
+                                <p id="ai-desc" class="text-green-800 text-sm mt-1 leading-relaxed">
+                                    Trafik stabil. Saran: Segera buat video Part 2 untuk menjaga momentum penonton.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="font-bold text-gray-800 mb-1 text-sm uppercase tracking-wider">Tugas & Peluang</h3>
+                    
+                    <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                        <div class="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center text-orange-500 flex-shrink-0">
+                            <i class="fa-regular fa-clock"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900 text-sm">Jadwal Optimal Upload</h4>
+                            <p class="text-gray-500 text-xs">Hari ini pukul 19:00 WIB</p>
+                        </div>
+                        <button class="text-blue-600 text-sm font-bold bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">Setel</button>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                        <div class="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 flex-shrink-0">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-gray-900 text-sm">Peluang Monetisasi</h4>
+                            <p class="text-gray-500 text-xs">Aktifkan fitur Membership sekarang.</p>
+                        </div>
+                        <button class="text-indigo-600 text-sm font-bold bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">Cek</button>
+                    </div>
+                </div>
+
+            </main>
+
+            <nav class="bg-white border-t border-gray-200 px-6 py-3 pb-6 flex justify-between items-center absolute bottom-0 w-full z-20">
+                <button class="flex flex-col items-center gap-1 text-red-600 w-16">
+                    <i class="fa-solid fa-chart-simple text-xl"></i>
+                    <span class="text-[10px] font-bold">Dasbor</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-900 w-16 transition-colors">
+                    <i class="fa-regular fa-lightbulb text-xl"></i>
+                    <span class="text-[10px] font-medium">Ide</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-900 w-16 transition-colors">
+                    <i class="fa-solid fa-comment-dots text-xl"></i>
+                    <span class="text-[10px] font-medium">Sosial</span>
+                </button>
+                <button class="flex flex-col items-center gap-1 text-gray-400 hover:text-gray-900 w-16 transition-colors">
+                    <i class="fa-regular fa-user text-xl"></i>
+                    <span class="text-[10px] font-medium">Profil</span>
+                </button>
+            </nav>
+
+        </div>
+    </div>
+
+    <script>
+        let views = 12450;
+        let subs = 42;
+        let revenue = 350000;
+        let simulationInterval;
+        let isGoodTrend = true;
+
+        const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
+        const formatCurrency = (num) => {
+            if(num >= 1000000) return 'Rp ' + (num / 1000000).toFixed(1).replace('.', ',') + ' Juta';
+            return 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.floor(num));
+        };
+
+        function startApp() {
+            const loginScreen = document.getElementById('login-screen');
+            const dashboardScreen = document.getElementById('dashboard-screen');
+            
+            loginScreen.style.opacity = '0';
+            
+            setTimeout(() => {
+                loginScreen.classList.add('hidden');
+                dashboardScreen.classList.remove('hidden');
+                dashboardScreen.classList.add('flex');
+                dashboardScreen.classList.add('fade-in');
+                
+                updateDOM();
+                startSimulation();
+            }, 300);
+        }
+
+        function logoutApp() {
+            clearInterval(simulationInterval);
+            const loginScreen = document.getElementById('login-screen');
+            const dashboardScreen = document.getElementById('dashboard-screen');
+            
+            dashboardScreen.classList.add('hidden');
+            dashboardScreen.classList.remove('flex', 'fade-in');
+            
+            loginScreen.classList.remove('hidden');
+            setTimeout(() => {
+                loginScreen.style.opacity = '1';
+            }, 50);
+        }
+
+        function startSimulation() {
+            simulationInterval = setInterval(() => {
+                // Simulasi pergerakan trafik (naik/turun)
+                const isGrowth = Math.random() > 0.35; 
+                let viewChange = 0;
+
+                if (isGrowth) {
+                    viewChange = Math.floor(Math.random() * 80) + 10;
+                    subs += Math.random() > 0.8 ? 1 : 0;
+                    revenue += (viewChange * 30); 
+                    isGoodTrend = true;
+                } else {
+                    viewChange = -(Math.floor(Math.random() * 40) + 5);
+                    isGoodTrend = false;
+                }
+
+                views += viewChange;
+                if(views < 0) views = 0;
+
+                const percentChange = ((Math.abs(viewChange) / views) * 100 * 50).toFixed(1);
+
+                updateDOM(viewChange >= 0, percentChange);
+                updateAIAdvice(isGoodTrend);
+
+            }, 3000);
+        }
+
+        function updateDOM(isPositive = true, percentStr = "0.0") {
+            document.getElementById('metric-viewers').innerText = formatNumber(views);
+            document.getElementById('metric-subs').innerText = "+" + formatNumber(subs);
+            document.getElementById('metric-rev').innerText = formatCurrency(revenue);
+
+            const badge = document.getElementById('trend-viewers-badge');
+            const badgeIcon = document.getElementById('trend-viewers-icon');
+            const badgeVal = document.getElementById('trend-viewers-val');
+
+            badgeVal.innerText = percentStr + "%";
+
+            if (isPositive) {
+                badge.className = "bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 transition-colors";
+                badgeIcon.className = "fa-solid fa-arrow-up";
+            } else {
+                badge.className = "bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 transition-colors";
+                badgeIcon.className = "fa-solid fa-arrow-down";
+            }
+        }
+
+        function updateAIAdvice(isGood) {
+            const aiCard = document.getElementById('ai-card');
+            const aiIconBg = document.getElementById('ai-icon-bg');
+            const aiIcon = document.getElementById('ai-icon');
+            const aiTitle = document.getElementById('ai-title');
+            const aiDesc = document.getElementById('ai-desc');
+
+            if (isGood) {
+                aiCard.className = "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-4 rounded-2xl shadow-sm transition-all duration-500";
+                aiIconBg.className = "w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 transition-colors duration-300";
+                aiIcon.className = "fa-solid fa-check text-white";
+                aiTitle.className = "font-bold text-green-900 text-base";
+                aiDesc.className = "text-green-800 text-sm mt-1 leading-relaxed";
+                
+                const positiveMsgs = [
+                    "Sangat Bagus! Trafik naik drastis. Saran: Pin komentar terbaik untuk tingkatkan engagement.",
+                    "Luar Biasa! Algoritma menyukai video Anda. Saran: Segera rencanakan video Part 2.",
+                    "Performa Stabil! Pertahankan gaya editing dan rasio klik (CTR) Anda saat ini."
+                ];
+                aiTitle.innerText = "Sangat Bagus!";
+                aiDesc.innerText = positiveMsgs[Math.floor(Math.random() * positiveMsgs.length)];
+                
+            } else {
+                aiCard.className = "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 p-4 rounded-2xl shadow-sm transition-all duration-500";
+                aiIconBg.className = "w-10 h-10 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 transition-colors duration-300";
+                aiIcon.className = "fa-solid fa-triangle-exclamation text-white";
+                aiTitle.className = "font-bold text-red-900 text-base";
+                aiDesc.className = "text-red-800 text-sm mt-1 leading-relaxed";
+                
+                const negativeMsgs = [
+                    "Peringatan! Trafik melambat. Saran: Ganti thumbnail dengan desain yang lebih kontras sekarang.",
+                    "Retensi menurun. Saran: Di video berikutnya, percepat tempo intro dalam 5 detik pertama.",
+                    "Viewer drop! Saran: Ubah judul video menjadi lebih membuat penasaran (clickbait positif)."
+                ];
+                aiTitle.innerText = "Butuh Tindakan!";
+                aiDesc.innerText = negativeMsgs[Math.floor(Math.random() * negativeMsgs.length)];
+            }
+        }
+    </script>
+</body>
+</html>
