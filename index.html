@@ -13,9 +13,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Google API & Identity Services -->
-    <script async defer src="https://apis.google.com/js/api.js"></script>
-    <script async defer src="https://accounts.google.com/gsi/client"></script>
+    <!-- Google API & Identity Services (DENGAN ONLOAD CALLBACK) -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <script>
       // Registrasi Service Worker untuk PWA
@@ -176,22 +176,29 @@
             }
         }
 
-        // === INISIALISASI GOOGLE API & AUTH ===
-        gapi.load('client', () => {
-            gapi.client.init({
-                discoveryDocs: DISCOVERY_DOCS,
-            }).then(() => {
-                checkSavedSession(); // Cek sesi saat halaman dimuat
-            }).catch(err => console.error("GAPI Error:", err));
-        });
+        // === INISIALISASI GOOGLE API (ANTI-RACE CONDITION PWA) ===
+        let gapiInited = false;
+        let gisInited = false;
 
-        window.onload = function () {
+        // Dipanggil otomatis saat apis.google.com selesai diunduh
+        function gapiLoaded() {
+            gapi.load('client', () => {
+                gapi.client.init({
+                    discoveryDocs: DISCOVERY_DOCS,
+                }).then(() => {
+                    gapiInited = true;
+                    checkSavedSession(); // Cek sesi jika GAPI sudah siap
+                }).catch(err => console.error("GAPI Error:", err));
+            });
+        }
+
+        // Dipanggil otomatis saat gsi/client selesai diunduh
+        function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
                 callback: (tokenResponse) => {
                     if (tokenResponse && tokenResponse.access_token) {
-                        // Simpan token ke localStorage (aktif 1 jam)
                         const expiresAt = new Date().getTime() + (tokenResponse.expires_in * 1000);
                         localStorage.setItem('yt_access_token', tokenResponse.access_token);
                         localStorage.setItem('yt_token_expires', expiresAt);
@@ -202,15 +209,16 @@
                     }
                 },
             });
-        };
+            gisInited = true;
+            checkAuthReady(); // Cek apakah tombol sudah bisa diaktifkan
+        }
 
-        // Fungsi mengecek sesi yang tersimpan
+        // Fungsi mengecek sesi yang tersimpan (Anti-Login Ulang saat Refresh)
         function checkSavedSession() {
             const savedToken = localStorage.getItem('yt_access_token');
             const tokenExpires = localStorage.getItem('yt_token_expires');
             const now = new Date().getTime();
 
-            // Jika token masih valid (< 1 jam)
             if (savedToken && tokenExpires && now < parseInt(tokenExpires)) {
                 gapi.client.setToken({ access_token: savedToken });
                 document.getElementById('login-screen').classList.add('hidden');
@@ -222,20 +230,23 @@
             }
         }
 
+        // Tombol hanya akan menyala setelah semua resource siap
         function checkAuthReady() {
-            const btn = document.getElementById('btn-login');
-            btn.disabled = false;
-            btn.innerText = 'Login dengan Akun YouTube';
-            btn.classList.replace('bg-blue-600', 'bg-red-600');
-            btn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+            if (gapiInited && gisInited) {
+                const btn = document.getElementById('btn-login');
+                btn.disabled = false;
+                btn.innerText = 'Login dengan Akun YouTube';
+                btn.classList.replace('bg-blue-600', 'bg-red-600');
+                btn.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+            }
         }
 
+        // Event Trigger Login & Logout
         document.getElementById('btn-login').addEventListener('click', () => {
             tokenClient.requestAccessToken({prompt: 'consent'});
         });
 
         document.getElementById('btn-logout').addEventListener('click', () => {
-            // Hapus sesi lokal saat logout
             localStorage.removeItem('yt_access_token');
             localStorage.removeItem('yt_token_expires');
             
@@ -276,7 +287,7 @@
 
             } catch (err) {
                 console.error("Gagal menarik data:", err);
-                document.getElementById('ai-strategy-text').innerText = "Gagal memuat data grafik. Pastikan API YouTube Analytics aktif, atau login ulang jika sesi berakhir.";
+                document.getElementById('ai-strategy-text').innerText = "Gagal memuat data grafik. Pastikan API YouTube Analytics aktif.";
             }
         }
 
