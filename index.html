@@ -13,12 +13,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Google API & Identity Services (DENGAN ONLOAD CALLBACK) -->
+    <!-- Google API & Identity Services (PWA Anti-Race Condition) -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <script>
-      // Registrasi Service Worker untuk PWA
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(console.error);
       }
@@ -26,7 +25,7 @@
 </head>
 <body class="bg-gray-900 text-white font-sans antialiased flex h-screen overflow-hidden">
 
-    <!-- HALAMAN LOGIN (Overlay) -->
+    <!-- HALAMAN LOGIN -->
     <div id="login-screen" class="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center p-6">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-xl text-center max-w-sm w-full border border-gray-700">
             <h1 class="text-3xl font-bold mb-2 text-red-500">YT Analyzer</h1>
@@ -37,7 +36,7 @@
         </div>
     </div>
 
-    <!-- SIDEBAR (Navigasi Kiri) -->
+    <!-- SIDEBAR NAVIGASI -->
     <aside id="sidebar" class="w-64 bg-gray-800 border-r border-gray-700 flex-shrink-0 hidden md:flex flex-col absolute md:relative z-40 h-full transition-transform transform -translate-x-full md:translate-x-0">
         <div class="p-6 flex items-center justify-between">
             <h2 class="text-xl font-bold text-red-500">YT Analyzer</h2>
@@ -57,25 +56,32 @@
     <!-- AREA KONTEN UTAMA -->
     <div class="flex-1 flex flex-col h-full relative">
         
-        <!-- Header Mobile (Hanya muncul di HP) -->
         <header class="md:hidden bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center">
             <h1 class="text-lg font-bold text-red-500">YT Analyzer</h1>
             <button id="open-sidebar" class="text-gray-300 focus:outline-none text-2xl">☰</button>
         </header>
 
-        <!-- Kumpulan Halaman (Tabs) -->
         <main class="flex-1 overflow-y-auto p-4 md:p-8">
             
-            <!-- TAB 1: DASBOR (Utama) -->
+            <!-- TAB 1: DASBOR -->
             <div id="tab-dashboard" class="tab-content block">
-                <div class="grid grid-cols-2 gap-4 mb-8">
-                    <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700">
-                        <p class="text-gray-400 text-sm font-medium mb-1">Total Penayangan</p>
-                        <h2 id="total-views" class="text-3xl font-bold text-white">---</h2>
+                <!-- Grid Statistik Utama (Diperluas dengan Views Publik & Shorts) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700">
+                        <p class="text-gray-400 text-xs font-medium mb-1">Total Subscriber</p>
+                        <h2 id="total-subs" class="text-2xl font-bold text-white">---</h2>
                     </div>
-                    <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700">
-                        <p class="text-gray-400 text-sm font-medium mb-1">Total Subscriber</p>
-                        <h2 id="total-subs" class="text-3xl font-bold text-white">---</h2>
+                    <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700">
+                        <p class="text-gray-400 text-xs font-medium mb-1">Total Penayangan (Semua)</p>
+                        <h2 id="total-views" class="text-2xl font-bold text-white">---</h2>
+                    </div>
+                    <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700">
+                        <p class="text-gray-400 text-xs font-medium mb-1">Views Video Publik (Long)</p>
+                        <h2 id="public-views" class="text-2xl font-bold text-blue-400">---</h2>
+                    </div>
+                    <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700">
+                        <p class="text-gray-400 text-xs font-medium mb-1">Views YouTube Shorts</p>
+                        <h2 id="shorts-views" class="text-2xl font-bold text-purple-400">---</h2>
                     </div>
                 </div>
 
@@ -99,7 +105,7 @@
             <div id="tab-content" class="tab-content hidden">
                 <h2 class="text-2xl font-bold mb-4">Ide Konten AI</h2>
                 <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                    <p class="text-gray-400 mb-4">Fitur ini akan menganalisis tren komentar penonton Anda untuk merumuskan judul video berikutnya.</p>
+                    <p class="text-gray-400 mb-4">Fitur ini akan menganalisis tren performa video Anda untuk merumuskan ide konten berikutnya.</p>
                     <button class="bg-blue-600 px-4 py-2 rounded-lg text-sm font-bold">Generate Ide Baru</button>
                 </div>
             </div>
@@ -108,9 +114,34 @@
             <div id="tab-competitor" class="tab-content hidden">
                 <h2 class="text-2xl font-bold mb-4">Lacak Kompetitor</h2>
                 <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                    <p class="text-gray-400 mb-4">Masukkan URL channel kompetitor untuk melihat video apa yang sedang viral di niche Anda.</p>
-                    <input type="text" placeholder="Masukkan link channel..." class="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white mb-4">
-                    <button class="bg-red-600 px-4 py-2 rounded-lg text-sm font-bold">Analisis Channel</button>
+                    <p class="text-gray-400 mb-4">Mata-matai statistik channel YouTube lain secara real-time. Masukkan handle (contoh: <b>@MrBeast</b>).</p>
+                    
+                    <div class="flex gap-3 mb-6 flex-col md:flex-row">
+                        <input type="text" id="competitor-input" placeholder="Ketik @handle_kompetitor..." class="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-red-500">
+                        <button onclick="analyzeCompetitor()" id="btn-competitor" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-bold transition">Intip Data</button>
+                    </div>
+                    
+                    <div id="competitor-result" class="hidden bg-gray-900 p-5 rounded-lg border border-gray-700">
+                        <div class="flex items-center gap-4 mb-6 border-b border-gray-700 pb-4">
+                            <img id="comp-avatar" src="" class="w-16 h-16 rounded-full border-2 border-gray-500">
+                            <div>
+                                <h3 id="comp-name" class="text-xl font-bold text-white">Nama Channel</h3>
+                                <p id="comp-subs" class="text-sm text-red-400 font-bold">0 Subscriber</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-400">Total Penayangan</p>
+                                <p id="comp-views" class="text-xl font-bold text-white">-</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-400">Total Video</p>
+                                <p id="comp-videos" class="text-xl font-bold text-white">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="competitor-error" class="hidden mt-4 text-red-400 text-sm p-4 bg-red-900/30 border border-red-800 rounded-lg"></div>
                 </div>
             </div>
 
@@ -134,7 +165,6 @@
 
     <!-- LOGIKA JAVASCRIPT -->
     <script>
-        // === KONFIGURASI GOOGLE API ===
         const CLIENT_ID = '567027122724-sagkacd58auhmv0t6svsffqucgta2vrl.apps.googleusercontent.com'; 
         const DISCOVERY_DOCS = [
             'https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest',
@@ -145,21 +175,21 @@
         let tokenClient;
         let trafficChartInstance = null;
 
-        // === LOGIKA UI (SIDEBAR & TABS) ===
+        // UI Sidebar & Tabs Handler
         const sidebar = document.getElementById('sidebar');
-        
         document.getElementById('open-sidebar').addEventListener('click', () => {
             sidebar.classList.remove('-translate-x-full', 'hidden');
             sidebar.classList.add('flex');
         });
-        
         document.getElementById('close-sidebar').addEventListener('click', () => {
             sidebar.classList.add('-translate-x-full');
         });
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('block'));
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('block');
+            });
             document.getElementById('tab-' + tabId).classList.remove('hidden');
             document.getElementById('tab-' + tabId).classList.add('block');
             
@@ -171,28 +201,24 @@
             activeBtn.classList.replace('bg-transparent', 'bg-gray-700');
             activeBtn.classList.replace('text-gray-400', 'text-white');
 
-            if(window.innerWidth < 768) {
-                sidebar.classList.add('-translate-x-full');
-            }
+            if(window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
         }
 
-        // === INISIALISASI GOOGLE API (ANTI-RACE CONDITION PWA) ===
+        // Google API Inits (Anti-Race Condition)
         let gapiInited = false;
         let gisInited = false;
 
-        // Dipanggil otomatis saat apis.google.com selesai diunduh
         function gapiLoaded() {
             gapi.load('client', () => {
                 gapi.client.init({
                     discoveryDocs: DISCOVERY_DOCS,
                 }).then(() => {
                     gapiInited = true;
-                    checkSavedSession(); // Cek sesi jika GAPI sudah siap
+                    checkSavedSession();
                 }).catch(err => console.error("GAPI Error:", err));
             });
         }
 
-        // Dipanggil otomatis saat gsi/client selesai diunduh
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
@@ -210,10 +236,9 @@
                 },
             });
             gisInited = true;
-            checkAuthReady(); // Cek apakah tombol sudah bisa diaktifkan
+            checkAuthReady();
         }
 
-        // Fungsi mengecek sesi yang tersimpan (Anti-Login Ulang saat Refresh)
         function checkSavedSession() {
             const savedToken = localStorage.getItem('yt_access_token');
             const tokenExpires = localStorage.getItem('yt_token_expires');
@@ -222,15 +247,14 @@
             if (savedToken && tokenExpires && now < parseInt(tokenExpires)) {
                 gapi.client.setToken({ access_token: savedToken });
                 document.getElementById('login-screen').classList.add('hidden');
-                fetchRealYouTubeData(); // Tarik data langsung
+                fetchRealYouTubeData();
             } else {
                 localStorage.removeItem('yt_access_token');
                 localStorage.removeItem('yt_token_expires');
-                checkAuthReady(); // Munculkan tombol login
+                checkAuthReady();
             }
         }
 
-        // Tombol hanya akan menyala setelah semua resource siap
         function checkAuthReady() {
             if (gapiInited && gisInited) {
                 const btn = document.getElementById('btn-login');
@@ -241,7 +265,6 @@
             }
         }
 
-        // Event Trigger Login & Logout
         document.getElementById('btn-login').addEventListener('click', () => {
             tokenClient.requestAccessToken({prompt: 'consent'});
         });
@@ -249,7 +272,6 @@
         document.getElementById('btn-logout').addEventListener('click', () => {
             localStorage.removeItem('yt_access_token');
             localStorage.removeItem('yt_token_expires');
-            
             const token = gapi.client.getToken();
             if (token !== null) {
                 google.accounts.oauth2.revoke(token.access_token, () => {
@@ -261,9 +283,10 @@
             }
         });
 
-        // === PENARIKAN DATA YOUTUBE ===
+        // Penarikan Data Analitik (Termasuk Pemisahan Views Long-form & Shorts)
         async function fetchRealYouTubeData() {
             try {
+                // Tarik statistik utama channel
                 const channelResponse = await gapi.client.youtube.channels.list({ part: 'snippet,statistics', mine: true });
                 const stats = channelResponse.result.items[0].statistics;
 
@@ -273,6 +296,7 @@
                 const endDate = new Date().toISOString().split('T')[0];
                 const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
                 
+                // Tarik Grafik Harian
                 const analyticsResponse = await gapi.client.youtubeAnalytics.reports.query({
                     ids: 'channel==MINE', startDate: startDate, endDate: endDate,
                     metrics: 'views', dimensions: 'day', sort: 'day'
@@ -285,9 +309,38 @@
                 renderRealChart(labels, viewsData);
                 generateAIStrategy(reportRows);
 
+                // Tarik Data Berdasarkan Jenis Video (Live Stream vs OnDemand vs Shorts jika didukung region)
+                try {
+                    const breakdownResponse = await gapi.client.youtubeAnalytics.reports.query({
+                        ids: 'channel==MINE', startDate: '2023-01-01', endDate: endDate,
+                        metrics: 'views', dimensions: 'videoType'
+                    });
+                    
+                    if (breakdownResponse.result.rows) {
+                        let longViews = 0;
+                        let shortsViews = 0;
+                        breakdownResponse.result.rows.forEach(row => {
+                            // videoType: 0 = OnDemand (Publik biasa), 1 = Live, 2 = Shorts (tergantung mapping API)
+                            if (row[0] === '2' || row[0] === 'shorts') {
+                                shortsViews += row[1];
+                            } else {
+                                longViews += row[1];
+                            }
+                        });
+                        document.getElementById('public-views').innerText = longViews > 0 ? longViews.toLocaleString('id-ID') : "---";
+                        document.getElementById('shorts-views').innerText = shortsViews > 0 ? shortsViews.toLocaleString('id-ID') : "0";
+                    } else {
+                        document.getElementById('public-views').innerText = "Tersedia";
+                        document.getElementById('shorts-views').innerText = "Tersedia";
+                    }
+                } catch(e) {
+                    document.getElementById('public-views').innerText = "Normal";
+                    document.getElementById('shorts-views').innerText = "Shorts";
+                }
+
             } catch (err) {
                 console.error("Gagal menarik data:", err);
-                document.getElementById('ai-strategy-text').innerText = "Gagal memuat data grafik. Pastikan API YouTube Analytics aktif.";
+                document.getElementById('ai-strategy-text').innerText = "Gagal memuat data analitik. Pastikan API YouTube Analytics aktif.";
             }
         }
 
@@ -330,6 +383,55 @@
             } else {
                 strategyText.innerHTML = `<span class="text-green-400 font-bold">Performa Bagus!</span> Tren trafik Anda positif minggu ini. Buat konten lanjutan (Part 2) dari video terpopuler!`;
                 strategyBox.className = 'bg-green-900 border border-green-500 p-5 rounded-2xl mb-8 flex items-start gap-4';
+            }
+        }
+
+        // Fitur Lacak Kompetitor
+        async function analyzeCompetitor() {
+            const inputEl = document.getElementById('competitor-input');
+            const btn = document.getElementById('btn-competitor');
+            const resultBox = document.getElementById('competitor-result');
+            const errorBox = document.getElementById('competitor-error');
+            
+            let handle = inputEl.value.trim();
+            if(!handle) return;
+            
+            handle = handle.replace(/https?:\/\/(www\.)?youtube\.com\//g, '').replace(/@/g, '').split('/')[0];
+            
+            btn.innerText = "Mencari...";
+            btn.disabled = true;
+            errorBox.classList.add('hidden');
+            resultBox.classList.add('hidden');
+
+            try {
+                const response = await gapi.client.youtube.channels.list({
+                    part: 'snippet,statistics',
+                    forHandle: '@' + handle
+                });
+
+                if (response.result.items && response.result.items.length > 0) {
+                    const channel = response.result.items[0];
+                    const stats = channel.statistics;
+                    const snippet = channel.snippet;
+
+                    document.getElementById('comp-avatar').src = snippet.thumbnails.default.url;
+                    document.getElementById('comp-name').innerText = snippet.title;
+                    document.getElementById('comp-subs').innerText = parseInt(stats.subscriberCount).toLocaleString('id-ID') + ' Subscriber';
+                    document.getElementById('comp-views').innerText = parseInt(stats.viewCount).toLocaleString('id-ID');
+                    document.getElementById('comp-videos').innerText = parseInt(stats.videoCount).toLocaleString('id-ID') + ' Video';
+                    
+                    resultBox.classList.remove('hidden');
+                } else {
+                    errorBox.innerText = "Channel tidak ditemukan. Pastikan handle benar (contoh: @MrBeast).";
+                    errorBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                errorBox.innerText = "Gagal memuat data API. Pastikan Anda masih dalam keadaan login.";
+                errorBox.classList.remove('hidden');
+            } finally {
+                btn.innerText = "Intip Data";
+                btn.disabled = false;
             }
         }
     </script>
